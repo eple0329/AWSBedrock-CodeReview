@@ -1,19 +1,19 @@
-import urllib.request
-import urllib.error
+import botocore.session, botocore.exceptions
+import urllib.request, urllib.error
 import json
 import os
-import botocore.session
-import botocore.exceptions
-from dotenv import load_dotenv
 
-load_dotenv()
-
+# Github 환경 변수
+github_token = os.environ['GITHUB_TOKEN']
 repo = os.environ['GITHUB_REPOSITORY']
 pr_number = os.environ['PR_NUMBER']
-github_token = os.environ['GITHUB_TOKEN']
+
+# AWS 환경 변수
 access_key = os.environ['REVIEW_AWS_ACCESS_KEY_ID']
 secret_key = os.environ['REVIEW_AWS_SECRET_ACCESS_KEY']
 aws_region = os.environ['AWS_REGION']
+
+# Bedrock 환경 변수
 anthropic_model = os.environ['ANTHROPIC_MODEL']
 max_tokens = os.environ['MAX_TOKENS']
 
