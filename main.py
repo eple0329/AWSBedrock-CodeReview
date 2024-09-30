@@ -89,7 +89,7 @@ def analyze_with_bedrock(diff):
 
         for event in response['body']:
             # 바이트 문자열을 일반 문자열로 디코딩
-            response_str = event.decode('utf-8')
+            response_str = event.decode('utf-8', errors='ignore')
 
             # JSON 파싱
             response_json = json.loads(response_str)
