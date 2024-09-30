@@ -4,18 +4,18 @@ import json
 import os
 
 # Github 환경 변수
-github_token = os.environ['GITHUB_TOKEN']
-repo = os.environ['GITHUB_REPOSITORY']
-pr_number = os.environ['PR_NUMBER']
+github_token = os.environ['INPUT_GITHUB_TOKEN']
+repo = os.environ['INPUT_GITHUB_REPOSITORY']
+pr_number = os.environ['INPUT_PR_NUMBER']
 
 # AWS 환경 변수
-access_key = os.environ['REVIEW_AWS_ACCESS_KEY_ID']
-secret_key = os.environ['REVIEW_AWS_SECRET_ACCESS_KEY']
-aws_region = os.environ['AWS_REGION']
+access_key = os.environ['INPUT_AWS_ACCESS_KEY_ID']
+secret_key = os.environ['INPUT_AWS_SECRET_ACCESS_KEY']
+aws_region = os.environ['INPUT_AWS_REGION']
 
 # Bedrock 환경 변수
-anthropic_model = os.environ['ANTHROPIC_MODEL']
-max_tokens = os.environ['MAX_TOKENS']
+anthropic_model = os.environ['INPUT_ANTHROPIC_MODEL']
+max_tokens = os.environ['INPUT_MAX_TOKENS']
 
 
 def get_pr_diff():
