@@ -1,29 +1,38 @@
 name: AWS Bedrock Code Review Action
 description: 'A Code Review Action Using AWS Bedrock'
 inputs:
-    # AWS
-    aws-access-key-id:
-        description: 'AWS Access Key ID'
-        required: true
-    aws-secret-access-key:
-        description: 'AWS Secret Access Key'
-        required: true
-    aws-region:
-        description: 'AWS Region'
-        required: true
-    # GitHub
-    github-token:
-        description: 'GitHub Token'
-        required: true
-    # Bedrock
-    anthropic-model:
-        description: 'Bedrock Anthropic Model Id'
-        required: false
-        default: 'anthropic.claude-3-haiku-20240307-v1:0'
-    max-tokens:
-        description: 'Max Tokens'
-        required: false
-        default: 1000
+  # AWS
+  aws-access-key-id:
+    description: 'AWS Access Key ID'
+    required: true
+  aws-secret-access-key:
+    description: 'AWS Secret Access Key'
+    required: true
+  aws-region:
+    description: 'AWS Region'
+    required: true
+  # GitHub
+  github-token:
+    description: 'GitHub Token'
+    required: true
+  # Bedrock
+  model:
+    description: 'Bedrock Model Id'
+    required: false
+    default: 'anthropic.claude-3-haiku-20240307-v1:0'
+  max-tokens:
+    description: 'Max Tokens'
+    required: false
+    default: 1000
+  # Custom
+  prompt:
+    description: 'Bedrock Prompt'
+    required: false
+    default: 'You are a senior backend engineer. Below there is a code diff please help me do a code review.\n\nFormat:\n- Numbering issues, specify file. Use markdown, headers, code blocks.\n- Suggest improvements/examples.\n- Be constructive.\n\nProvide detailed review.'
+  language:
+    description: 'Response Language'
+    required: false
+    default: 'English'
 
 branding:
   icon: 'check-circle'
@@ -43,5 +52,7 @@ runs:
         INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
         INPUT_GITHUB_REPOSITORY: ${{ github.repository }}
         INPUT_PR_NUMBER: ${{ github.event.pull_request.number }}
-        INPUT_ANTHROPIC_MODEL: ${{ inputs.anthropic-model }}
+        INPUT_MODEL: ${{ inputs.model }}
         INPUT_MAX_TOKENS: ${{ inputs.max-tokens }}
+        INPUT_PROMPT: ${{ inputs.prompt }}
+        INPUT_LANGUAGE: ${{ inputs.language }}

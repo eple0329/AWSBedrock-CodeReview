@@ -1,7 +1,11 @@
 import botocore.session, botocore.exceptions
-import urllib.request, urllib.error
+import requests
 import json
 import os
+import dotenv
+
+# .env 파일 로드
+dotenv.load_dotenv()
 
 # Github 환경 변수
 github_token = os.environ['INPUT_GITHUB_TOKEN']
@@ -14,47 +18,36 @@ secret_key = os.environ['INPUT_AWS_SECRET_ACCESS_KEY']
 aws_region = os.environ['INPUT_AWS_REGION']
 
 # Bedrock 환경 변수
-anthropic_model = os.environ['INPUT_ANTHROPIC_MODEL']
+model = os.environ['INPUT_MODEL']
 max_tokens = os.environ['INPUT_MAX_TOKENS']
+
+input_prompt = os.environ['INPUT_PROMPT']
+language = os.environ['INPUT_LANGUAGE']
 
 
 def get_pr_diff():
     api_url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}"
 
-    # GitHub API 요청 헤더
     headers = {
         "Authorization": f"Bearer {github_token}",
         "Accept": "application/vnd.github.diff"
     }
 
-    # API 요청 생성
-    req = urllib.request.Request(api_url, headers=headers)
-
     try:
-        # API 요청 실행
-        with urllib.request.urlopen(req) as response:
-            # 응답 읽기
-            response_data = response.read()
+        response = requests.get(api_url, headers=headers)
+        response.raise_for_status()
 
-            # 응답 디코딩 (UTF-8 사용)
-            response_text = response_data.decode('utf-8')
+        print(f"Status Code: {response.status_code}")
+        print(f"Response: {response.text[:100]}...")  # 처음 100자만 출력
 
-            # 상태 코드 확인
-            status_code = response.getcode()
+        return response.text
 
-            print(f"Status Code: {status_code}")
-            print(f"Response: {response_text[:100]}...")  # 처음 100자만 출력
-
-    except urllib.error.HTTPError as e:
-        print(f"HTTP Error: {e.code}")
-        print(f"Reason: {e.reason}")
-    except urllib.error.URLError as e:
-        print(f"URL Error: {e.reason}")
+    except requests.exceptions.RequestException as e:
+        print(f"Error: {e}")
+        return None
 
 
 def analyze_with_bedrock(diff):
-    formatted_prompt = f"Human: You're a senior backend engineer. Below there is a code diff please help me do a code review.\n\nFormat:\n- Numbering issues, specify file. Use markdown, headers, code blocks.\n- Suggest improvements/examples.\n- Be constructive.\n\nPR diff:\n\n{diff}\n\nProvide detailed review. Please answer to korean Assistant:"
-
     # botocore 세션 생성
     session = botocore.session.get_session()
 
@@ -66,30 +59,56 @@ def analyze_with_bedrock(diff):
     # Bedrock 런타임 클라이언트 생성
     client = session.create_client('bedrock-runtime', region_name=aws_region)
 
-    # 요청 본문 생성
-    request_body = json.dumps({
-        "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": int(max_tokens),
-        "messages": [
-            {
-                "role": "user",
-                "content": formatted_prompt
+    prompt = input_prompt + f" Please answer to {language}."
+    prompt = prompt + f" PR diff:\n\n{diff}"
+
+    print(prompt)
+
+    provider = model.split('.')[0]
+    request_body = ""
+
+    if provider == 'anthropic':
+        formatted_prompt = "Human: " + prompt + " Assistant:"
+
+        request_body = json.dumps({
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": int(max_tokens),
+            "messages": [
+                {
+                    "role": "user",
+                    "content": formatted_prompt
+                }
+            ]
+        })
+
+    if provider == 'amazon':
+        formatted_prompt = "User: " + prompt + " \n Bot:"
+
+        request_body = json.dumps({
+            "inputText": formatted_prompt,
+            "textGenerationConfig": {
+                "temperature": 0.7,
+                "topP": 0.9,
+                "maxTokenCount": int(max_tokens)
             }
-        ]
-    })
+        })
 
     try:
         # Bedrock 모델 호출
         response = client.invoke_model(
-            modelId=anthropic_model,
+            modelId=model,
             contentType='application/json',
             accept='application/json',
             body=request_body
         )
 
-        for event in response['body']:
+        if provider == 'anthropic':
+            response_body = b''
+            for event in response['body']:
+                response_body += event
             # 바이트 문자열을 일반 문자열로 디코딩
-            response_str = event.decode('utf-8', errors='ignore')
+            response_str = response_body.decode('utf-8', errors='ignore')
+            print(response_str)
 
             # JSON 파싱
             response_json = json.loads(response_str)
@@ -99,6 +118,19 @@ def analyze_with_bedrock(diff):
 
             return content_text
 
+        if provider == 'amazon':
+            response_body = json.loads(response.get("body").read())
+            finish_reason = response_body.get("error")  # AWS 에러
+
+            if finish_reason is not None:
+                raise f"Text generation error. Error is {finish_reason}"
+
+            print(f"Input token count: {response_body['inputTextTokenCount']}")
+            for result in response_body['results']:
+                print(f"Token count: {result['tokenCount']}")
+                #print(f"Output text: {result['outputText']}")
+                return result['outputText']
+
     except botocore.exceptions.ClientError as error:
         print("An error occurred:", error)
 
@@ -107,10 +139,8 @@ def analyze_with_bedrock(diff):
 
 
 def post_review(comment):
-    # GitHub API 엔드포인트
     api_url = f"https://api.github.com/repos/{repo}/issues/{pr_number}/comments"
 
-    # GitHub API 요청 헤더
     headers = {
         "Authorization": f"Bearer {github_token}",
         "Accept": "application/vnd.github-commitcomment.raw+json",
@@ -121,25 +151,18 @@ def post_review(comment):
         "body": "# [REVIEW_BOT]\n" + comment
     }
 
-    # JSON 데이터를 인코딩
-    data = json.dumps(data).encode('utf-8')
-
-    # 요청 객체 생성
-    req = urllib.request.Request(api_url, data=data, headers=headers, method='POST')
-
     try:
-        # API 요청 보내기
-        with urllib.request.urlopen(req) as response:
-            if response.getcode() == 201:
-                print("Comment posted successfully!")
-            else:
-                print(f"Failed to post comment: {response.getcode()}")
-                print(response.read().decode('utf-8'))
-    except urllib.error.HTTPError as e:
-        print(f"HTTP Error: {e.code}")
-        print(e.read().decode('utf-8'))
-    except urllib.error.URLError as e:
-        print(f"URL Error: {e.reason}")
+        response = requests.post(api_url, json=data, headers=headers)
+        response.raise_for_status()
+
+        if response.status_code == 201:
+            print("Comment posted successfully!")
+        else:
+            print(f"Failed to post comment: {response.status_code}")
+            print(response.text)
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error: {e}")
 
 
 if __name__ == "__main__":
