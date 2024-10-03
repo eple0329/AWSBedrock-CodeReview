@@ -41,7 +41,7 @@ branding:
 runs:
   using: 'composite'
   steps:
-    - run: pip install -r requirements.txt
+    - run: pip install -r ${{ github.action_path }}/requirements.txt
       shell: bash
     - run: python ${{ github.action_path }}/main.py
       shell: bash
