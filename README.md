@@ -1,5 +1,3 @@
-Here's the English translation of the content, with some minor adaptations:
-
 # Bedrock CodeReview Bot
 
 Translation
