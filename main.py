@@ -58,8 +58,6 @@ def analyze_with_bedrock(diff):
     prompt = input_prompt + f" Please answer to {language}."
     prompt = prompt + f" PR diff:\n\n{diff}"
 
-    print(prompt)
-
     provider = model.split('.')[0]
     request_body = ""
 
@@ -98,33 +96,28 @@ def analyze_with_bedrock(diff):
             body=request_body
         )
 
+        response_body = b''
+        for event in response['body']:
+            response_body += event
+
+        # 바이트 문자열을 일반 문자열로 디코딩
+        response_str = response_body.decode('utf-8', errors='ignore')
+        response_json = json.loads(response_str)
+
         if provider == 'anthropic':
-            response_body = b''
-            for event in response['body']:
-                response_body += event
-            # 바이트 문자열을 일반 문자열로 디코딩
-            response_str = response_body.decode('utf-8', errors='ignore')
-            print(response_str)
-
-            # JSON 파싱
-            response_json = json.loads(response_str)
-
             # content의 text 추출
             content_text = response_json['content'][0]['text']
 
             return content_text
 
         if provider == 'amazon':
-            response_body = json.loads(response.get("body").read())
-            finish_reason = response_body.get("error")  # AWS 에러
-
+            finish_reason = response_json.get("error")  # AWS 에러
             if finish_reason is not None:
                 raise f"Text generation error. Error is {finish_reason}"
 
-            print(f"Input token count: {response_body['inputTextTokenCount']}")
-            for result in response_body['results']:
+            print(f"Input token count: {response_json['inputTextTokenCount']}")
+            for result in response_json['results']:
                 print(f"Token count: {result['tokenCount']}")
-                #print(f"Output text: {result['outputText']}")
                 return result['outputText']
 
     except botocore.exceptions.ClientError as error:
