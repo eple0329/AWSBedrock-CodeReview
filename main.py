@@ -2,10 +2,6 @@ import botocore.session, botocore.exceptions
 import requests
 import json
 import os
-import dotenv
-
-# .env 파일 로드
-dotenv.load_dotenv()
 
 # Github 환경 변수
 github_token = os.environ['INPUT_GITHUB_TOKEN']
