@@ -1,3 +1,5 @@
+import re
+
 import botocore.session, botocore.exceptions
 import requests
 import json
@@ -24,6 +26,7 @@ title = os.environ['INPUT_TITLE']
 temperature = float(os.environ['INPUT_TEMPERATURE'])
 top_p = float(os.environ['INPUT_TOP_P'])
 
+
 def get_pr_diff():
     api_url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}"
 
@@ -36,6 +39,11 @@ def get_pr_diff():
         response = requests.get(api_url, headers=headers)
         response.raise_for_status()
         print(f"Status Code: {response.status_code}")
+
+        changed_files = set(re.findall(r'diff --git a/(.*?) b/', response.text))
+        print("changed_files:")
+        for file in changed_files:
+            print(f"- {file}")
 
         return response.text
 
