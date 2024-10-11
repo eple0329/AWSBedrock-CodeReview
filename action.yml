@@ -21,7 +21,7 @@ inputs:
     required: false
     default: 'anthropic.claude-3-haiku-20240307-v1:0'
   max-tokens:
-    description: 'Max Tokens'
+    description: 'Max Tokens (In AWS Bedrock, 3072 is the maximum value)'
     required: false
     default: 1000
   # Custom
@@ -33,6 +33,18 @@ inputs:
     description: 'Response Language'
     required: false
     default: 'English'
+  title:
+    description: 'Title'
+    required: false
+    default: '[Code Review]'
+  temperature:
+    description: 'Model Temperature'
+    required: false
+    default: 0.5
+  top-p:
+    description: 'Model Top P'
+    required: false
+    default: 0.9
 
 branding:
   icon: 'check-circle'
@@ -56,3 +68,6 @@ runs:
         INPUT_MAX_TOKENS: ${{ inputs.max-tokens }}
         INPUT_PROMPT: ${{ inputs.prompt }}
         INPUT_LANGUAGE: ${{ inputs.language }}
+        INPUT_TITLE: ${{ inputs.title }}
+        INPUT_TEMPERATURE: ${{ inputs.temperature }}
+        INPUT_TOP_P: ${{ inputs.top-p }}

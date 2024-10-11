@@ -15,11 +15,14 @@ aws_region = os.environ['INPUT_AWS_REGION']
 
 # Bedrock 환경 변수
 model = os.environ['INPUT_MODEL']
-max_tokens = os.environ['INPUT_MAX_TOKENS']
+max_tokens = int(os.environ['INPUT_MAX_TOKENS'])
 
+# 추가 환경 변수
 input_prompt = os.environ['INPUT_PROMPT']
 language = os.environ['INPUT_LANGUAGE']
-
+title = os.environ['INPUT_TITLE']
+temperature = float(os.environ['INPUT_TEMPERATURE'])
+top_p = float(os.environ['INPUT_TOP_P'])
 
 def get_pr_diff():
     api_url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}"
@@ -32,9 +35,7 @@ def get_pr_diff():
     try:
         response = requests.get(api_url, headers=headers)
         response.raise_for_status()
-
         print(f"Status Code: {response.status_code}")
-        print(f"Response: {response.text[:100]}...")  # 처음 100자만 출력
 
         return response.text
 
@@ -55,35 +56,33 @@ def analyze_with_bedrock(diff):
     # Bedrock 런타임 클라이언트 생성
     client = session.create_client('bedrock-runtime', region_name=aws_region)
 
-    prompt = input_prompt + f" Please answer to {language}."
-    prompt = prompt + f" PR diff:\n\n{diff}"
+    system_prompt = input_prompt + f" Please answer to {language}. "
 
     provider = model.split('.')[0]
     request_body = ""
 
     if provider == 'anthropic':
-        formatted_prompt = "Human: " + prompt + " Assistant:"
-
         request_body = json.dumps({
             "anthropic_version": "bedrock-2023-05-31",
-            "max_tokens": int(max_tokens),
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "top_p": top_p,
+            "system": system_prompt,
             "messages": [
                 {
                     "role": "user",
-                    "content": formatted_prompt
+                    "content": diff
                 }
             ]
         })
 
     if provider == 'amazon':
-        formatted_prompt = "User: " + prompt + " \n Bot:"
-
         request_body = json.dumps({
-            "inputText": formatted_prompt,
+            "inputText": system_prompt + diff,
             "textGenerationConfig": {
-                "temperature": 0.7,
-                "topP": 0.9,
-                "maxTokenCount": int(max_tokens)
+                "temperature": temperature,
+                "topP": top_p,
+                "maxTokenCount": max_tokens
             }
         })
 
@@ -137,7 +136,7 @@ def post_review(comment):
     }
 
     data = {
-        "body": "# [REVIEW_BOT]\n" + comment
+        "body": f"# {title}\n" + str(comment)
     }
 
     try:
