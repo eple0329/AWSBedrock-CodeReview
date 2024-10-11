@@ -45,6 +45,10 @@ inputs:
     description: 'Model Top P'
     required: false
     default: 0.9
+  home-directory:
+    description: 'Home Directory In Your Project'
+    required: false
+    default: ''
 
 branding:
   icon: 'check-circle'
@@ -71,3 +75,4 @@ runs:
         INPUT_TITLE: ${{ inputs.title }}
         INPUT_TEMPERATURE: ${{ inputs.temperature }}
         INPUT_TOP_P: ${{ inputs.top-p }}
+        INPUT_HOME_DIRECTORY: ${{ inputs.home-directory }}

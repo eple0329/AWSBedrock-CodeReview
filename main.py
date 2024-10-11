@@ -25,6 +25,7 @@ language = os.environ['INPUT_LANGUAGE']
 title = os.environ['INPUT_TITLE']
 temperature = float(os.environ['INPUT_TEMPERATURE'])
 top_p = float(os.environ['INPUT_TOP_P'])
+home_dir = os.environ['INPUT_HOME_DIRECTORY']
 
 
 def get_pr_diff():
@@ -40,16 +41,40 @@ def get_pr_diff():
         response.raise_for_status()
         print(f"Status Code: {response.status_code}")
 
-        changed_files = set(re.findall(r'diff --git a/(.*?) b/', response.text))
-        print("changed_files:")
-        for file in changed_files:
-            print(f"- {file}")
-
-        return response.text
+        return filtering_diff(response.text)
 
     except requests.exceptions.RequestException as e:
         print(f"Error: {e}")
         return None
+
+
+def filtering_diff(diff):
+    changed_files = set(re.findall(r'diff --git a/(.*?) b/', diff))
+    print("changed_files:")
+    for file in changed_files:
+        print(f"- {file}")
+
+    # 홈 디렉토리 내의 파일만 필터링하고 제외 파일 리스트에 없는 파일만 선택
+    filtered_files = [
+        file for file in changed_files if file.startswith(home_dir)
+    ]
+
+    print("Filtered changed files:")
+    for file in filtered_files:
+        print(f"- {file}")
+
+    # 필터링된 파일만 포함하는 새로운 diff 생성
+    filtered_diff = []
+    current_file = None
+    for line in diff.splitlines():
+        if line.startswith('diff --git'):
+            file_match = re.search(r'diff --git a/(.*?) b/', line)
+            if file_match:
+                current_file = file_match.group(1)
+
+        if current_file in filtered_files:
+            filtered_diff.append(line)
+    return '\n'.join(filtered_diff)
 
 
 def analyze_with_bedrock(diff):
